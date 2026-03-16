@@ -1,0 +1,1178 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>VR Virtual School — 5 Subject Rooms</title>
+<script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{overflow:hidden;font-family:'Segoe UI',Arial,sans-serif;}
+.glass{background:rgba(0,8,25,0.88);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,0.12);border-radius:14px;color:white;}
+
+/* INFO PANEL */
+#info-panel{display:none;position:fixed;bottom:90px;right:20px;padding:18px;width:310px;z-index:9999;}
+#info-panel h2{font-size:17px;margin-bottom:7px;}
+#info-panel p{font-size:12px;line-height:1.7;color:#c8d8f0;margin-bottom:8px;}
+#info-fun{font-size:11px;font-style:italic;margin-bottom:8px;}
+
+/* QUIZ */
+#quiz-panel{display:none;position:fixed;bottom:90px;right:20px;padding:18px;width:310px;z-index:9999;}
+#quiz-panel h3{font-size:14px;margin-bottom:12px;line-height:1.5;}
+.qopt{display:block;width:100%;background:rgba(255,255,255,0.06);color:#c8d8f0;
+  border:1px solid rgba(255,255,255,0.15);padding:9px 12px;border-radius:9px;
+  cursor:pointer;margin:4px 0;font-size:12px;text-align:left;transition:background 0.2s;}
+.qopt:hover{background:rgba(255,255,255,0.14);}
+.qopt.correct{background:rgba(39,174,96,0.3);border-color:#27ae60;}
+.qopt.wrong{background:rgba(192,57,43,0.3);border-color:#c0392b;}
+#qres{font-size:12px;margin:8px 0;min-height:16px;font-weight:bold;}
+
+/* HEART PANEL */
+#heart-panel{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+  padding:22px;width:520px;max-height:85vh;overflow-y:auto;z-index:9999;text-align:center;}
+#heart-panel h2{color:#e74c3c;font-size:20px;margin-bottom:14px;}
+#heart-canvas-wrap{position:relative;width:100%;height:320px;margin-bottom:14px;}
+#heart-svg{width:100%;height:320px;}
+.h-btn{background:rgba(231,76,60,0.2);color:#e74c3c;border:1px solid rgba(231,76,60,0.5);
+  padding:7px 14px;border-radius:10px;cursor:pointer;font-size:12px;margin:3px;}
+.h-btn:hover{background:rgba(231,76,60,0.4);}
+#h-label-box{background:rgba(0,0,0,0.5);border-radius:10px;padding:10px 14px;
+  margin-top:10px;font-size:12px;color:#f0c0c0;line-height:1.8;text-align:left;}
+
+/* SCORE */
+#score-box{display:none;position:fixed;top:16px;right:16px;padding:10px 16px;z-index:9999;font-size:12px;line-height:1.8;}
+#score-box strong{color:#FDB813;}
+
+/* TIMER */
+#timer-box{display:none;position:fixed;top:16px;left:50%;transform:translateX(-50%);
+  padding:9px 24px;z-index:9999;font-size:18px;font-weight:bold;color:#FDB813;letter-spacing:2px;}
+#timer-box.urgent{color:#e74c3c;border-color:#e74c3c;}
+
+/* HINT */
+#hint{display:none;position:fixed;top:16px;left:50%;transform:translateX(-50%);
+  padding:8px 20px;z-index:9998;font-size:12px;color:#FDB813;white-space:nowrap;}
+
+/* CONTROLS */
+#controls{display:none;position:fixed;top:16px;left:16px;z-index:9999;flex-direction:column;gap:5px;}
+.cbtn{background:rgba(0,8,25,0.88);color:#FDB813;padding:7px 12px;border-radius:12px;
+  font-size:11px;border:1px solid rgba(253,184,19,0.4);cursor:pointer;white-space:nowrap;}
+.cbtn:hover{background:rgba(0,25,70,0.95);}
+
+/* ROOM BAR */
+#room-bar{display:none;position:fixed;top:16px;left:50%;transform:translateX(-50%);
+  gap:5px;z-index:9999;padding:7px 12px;border-radius:24px;margin-top:44px;}
+.rbtn{background:rgba(255,255,255,0.08);color:#ccc;border:1px solid rgba(255,255,255,0.18);
+  padding:6px 12px;border-radius:14px;cursor:pointer;font-size:11px;font-weight:bold;transition:all 0.2s;}
+.rbtn.active,.rbtn:hover{color:#FDB813;border-color:rgba(253,184,19,0.5);background:rgba(253,184,19,0.15);}
+
+/* WALK BTN */
+#walk-btn{display:none;position:fixed;bottom:90px;left:16px;padding:10px 15px;
+  z-index:9999;font-size:12px;font-weight:bold;cursor:pointer;color:#FDB813;}
+
+/* PLANET BUTTONS */
+.pbtn{display:none;position:fixed;border-radius:50%;background:transparent;
+  border:2px solid rgba(253,184,19,0);cursor:pointer;z-index:500;transition:all 0.2s;}
+.pbtn:hover{border:3px solid #FDB813;background:rgba(253,184,19,0.15);}
+.pbtn::after{content:attr(data-label);position:absolute;bottom:-24px;left:50%;
+  transform:translateX(-50%);background:rgba(0,0,0,0.9);color:#FDB813;
+  padding:2px 8px;border-radius:8px;font-size:10px;white-space:nowrap;
+  opacity:0;transition:opacity 0.2s;pointer-events:none;}
+.pbtn:hover::after{opacity:1;}
+
+/* PLANET BAR */
+#pbar{display:none;position:fixed;bottom:16px;left:50%;transform:translateX(-50%);
+  gap:5px;z-index:9999;padding:8px 12px;border-radius:26px;}
+#pbar button{background:rgba(255,255,255,0.08);color:#FDB813;
+  border:1px solid rgba(253,184,19,0.35);padding:6px 10px;
+  border-radius:14px;cursor:pointer;font-size:11px;font-weight:bold;}
+#pbar button:hover{background:rgba(253,184,19,0.28);}
+
+/* CELEBRATION */
+#celebration{display:none;position:fixed;top:0;left:0;width:100%;height:100%;
+  background:rgba(0,5,18,0.95);flex-direction:column;align-items:center;
+  justify-content:center;z-index:99998;color:white;text-align:center;padding:20px;}
+#celebration h2{font-size:32px;color:#FDB813;margin-bottom:10px;}
+.bscore{font-size:48px;color:#FDB813;font-weight:bold;margin:10px 0;}
+.cel-btns{display:flex;gap:12px;margin-top:18px;flex-wrap:wrap;justify-content:center;}
+.cel-btns button{border:none;padding:12px 24px;font-size:14px;font-weight:bold;border-radius:20px;cursor:pointer;}
+#btn-again{background:#FDB813;color:#000;}
+#btn-lb{background:rgba(253,184,19,0.18);color:#FDB813;border:2px solid #FDB813;}
+
+/* LEADERBOARD */
+#lb-overlay{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+  padding:24px;width:340px;z-index:99997;text-align:center;}
+#lb-overlay h2{color:#FDB813;font-size:20px;margin-bottom:14px;}
+.lbrow{display:flex;justify-content:space-between;align-items:center;
+  padding:7px 10px;border-radius:7px;margin:4px 0;background:rgba(253,184,19,0.08);font-size:12px;}
+.lbrank{color:#FDB813;font-weight:bold;width:28px;}
+.lbname{flex:1;text-align:left;color:#c8d8f0;}
+.lbpts{color:#2ecc71;font-weight:bold;}
+
+/* START */
+#start{position:fixed;top:0;left:0;width:100%;height:100%;
+  background:radial-gradient(ellipse at center,#0a1628 0%,#050d1a 100%);
+  display:flex;flex-direction:column;align-items:center;
+  justify-content:center;z-index:99999;color:white;text-align:center;padding:20px;}
+#start h1{font-size:30px;color:#FDB813;margin-bottom:8px;}
+#start .sub{font-size:14px;color:#7a9bc0;margin-bottom:16px;}
+.ftags{display:flex;gap:7px;flex-wrap:wrap;justify-content:center;margin-bottom:20px;}
+.ftag{background:rgba(253,184,19,0.1);border:1px solid rgba(253,184,19,0.35);
+  color:#FDB813;padding:4px 12px;border-radius:12px;font-size:10px;}
+#name-in{padding:12px 20px;border-radius:24px;border:2px solid rgba(253,184,19,0.5);
+  background:rgba(255,255,255,0.06);color:white;font-size:15px;
+  text-align:center;width:260px;margin-bottom:16px;outline:none;}
+#name-in::placeholder{color:#445;}
+#enter-btn{background:linear-gradient(135deg,#FDB813,#e09000);color:#000;border:none;
+  padding:14px 44px;font-size:17px;font-weight:bold;border-radius:28px;cursor:pointer;}
+#enter-btn:hover{transform:scale(1.03);}
+
+#crosshair{display:none;position:fixed;top:50%;left:50%;
+  transform:translate(-50%,-50%);width:18px;height:18px;z-index:600;pointer-events:none;}
+#crosshair::before,#crosshair::after{content:'';position:absolute;background:rgba(253,184,19,0.7);}
+#crosshair::before{width:2px;height:18px;left:8px;top:0;}
+#crosshair::after{width:18px;height:2px;left:0;top:8px;}
+
+/* MOVE GUIDE */
+#move-guide{display:none;position:fixed;bottom:90px;right:350px;padding:10px 14px;
+  z-index:9999;font-size:10px;color:#666;line-height:1.9;}
+
+@keyframes heartbeat{0%,100%{transform:scale(1);}50%{transform:scale(1.08);}}
+@keyframes flowblood{0%{stroke-dashoffset:100;}100%{stroke-dashoffset:0;}}
+@keyframes pulse-glow{0%,100%{opacity:0.4;}50%{opacity:0.9;}}
+</style>
+</head>
+<body>
+
+<!-- START SCREEN -->
+<div id="start">
+  <div style="font-size:56px;margin-bottom:12px">🏫</div>
+  <h1>VR Virtual School</h1>
+  <p class="sub">5 Subject Rooms — Immersive 3D Learning</p>
+  <div class="ftags">
+    <span class="ftag">🪐 Solar System</span>
+    <span class="ftag">❤ Heart Anatomy</span>
+    <span class="ftag">📐 Geometry</span>
+    <span class="ftag">🌍 World Map</span>
+    <span class="ftag">🦴 Human Body</span>
+    <span class="ftag">🔬 Science Lab</span>
+    <span class="ftag">🏆 Leaderboard</span>
+    <span class="ftag">⏱ Timer</span>
+    <span class="ftag">🔊 Voice</span>
+  </div>
+  <input id="name-in" type="text" placeholder="Enter your name" maxlength="18"/>
+  <br>
+  <button id="enter-btn" onclick="startApp()">Enter School ➜</button>
+</div>
+
+<!-- LEADERBOARD -->
+<div id="lb-overlay" class="glass">
+  <h2>🏆 Leaderboard</h2>
+  <div id="lb-list"></div><br>
+  <button class="cbtn" onclick="document.getElementById('lb-overlay').style.display='none'">Close</button>
+</div>
+
+<!-- CELEBRATION -->
+<div id="celebration">
+  <div style="font-size:48px;margin-bottom:10px">🌟 🏆 🌟</div>
+  <h2>Incredible Explorer!</h2>
+  <p id="cel-msg">You explored everything!</p>
+  <div class="bscore" id="cel-score">0 pts</div>
+  <p id="cel-time" style="color:#FDB813;font-size:16px"></p>
+  <div class="cel-btns">
+    <button id="btn-again" onclick="resetAll()">Play Again</button>
+    <button id="btn-lb" onclick="showLB()">🏆 Leaderboard</button>
+  </div>
+</div>
+
+<!-- HUD -->
+<div id="hint" class="glass">Use WASD to move · Click objects to explore</div>
+<div id="timer-box" class="glass">⏱ <span id="tdisp">90</span>s</div>
+<div id="score-box" class="glass">
+  <strong id="pname-disp">Explorer</strong><br>
+  Explored: <span id="explored">0</span> &nbsp;|&nbsp; <strong id="pts">0</strong> pts<br>
+  <span id="streak" style="color:#FDB813;font-size:10px"></span>
+</div>
+
+<div id="controls">
+  <button class="cbtn" id="music-btn" onclick="toggleMusic()">🎵 Music: ON</button>
+  <button class="cbtn" onclick="toggleFullscreen()">⛶ Fullscreen</button>
+  <button class="cbtn" onclick="showLB()">🏆 Leaderboard</button>
+</div>
+
+<!-- ROOM SWITCHER BAR -->
+<div id="room-bar" class="glass" style="display:none">
+  <button class="rbtn active" onclick="switchRoom('solar')"    id="rb-solar">🪐 Solar</button>
+  <button class="rbtn"        onclick="switchRoom('heart')"    id="rb-heart">❤ Heart</button>
+  <button class="rbtn"        onclick="switchRoom('geometry')" id="rb-geometry">📐 Shapes</button>
+  <button class="rbtn"        onclick="switchRoom('world')"    id="rb-world">🌍 World</button>
+  <button class="rbtn"        onclick="switchRoom('body')"     id="rb-body">🦴 Body</button>
+</div>
+
+<button id="walk-btn" class="glass" onclick="doWalk()">🚶 Send Student to Objects</button>
+
+<!-- PLANET BUTTONS (solar room) -->
+<button class="pbtn" data-label="Sun"     onclick="showInfo('sun')"     style="width:80px;height:80px;top:41%;left:37%"></button>
+<button class="pbtn" data-label="Earth"   onclick="showInfo('earth')"   style="width:60px;height:60px;top:37%;left:46%"></button>
+<button class="pbtn" data-label="Moon"    onclick="showInfo('moon')"    style="width:44px;height:44px;top:33%;left:50%"></button>
+<button class="pbtn" data-label="Mars"    onclick="showInfo('mars')"    style="width:52px;height:52px;top:35%;left:55%"></button>
+<button class="pbtn" data-label="Jupiter" onclick="showInfo('jupiter')" style="width:66px;height:66px;top:36%;left:60%"></button>
+<button class="pbtn" data-label="Saturn"  onclick="showInfo('saturn')"  style="width:58px;height:58px;top:32%;left:66%"></button>
+
+<!-- SUBJECT OBJECT BUTTONS (other rooms) — repositioned by JS -->
+<button id="obj-btn-1" class="pbtn" style="width:80px;height:80px;top:38%;left:44%"></button>
+<button id="obj-btn-2" class="pbtn" style="width:70px;height:70px;top:36%;left:52%"></button>
+<button id="obj-btn-3" class="pbtn" style="width:65px;height:65px;top:40%;left:58%"></button>
+<button id="obj-btn-4" class="pbtn" style="width:60px;height:60px;top:34%;left:48%"></button>
+
+<!-- PLANET BAR -->
+<div id="pbar" class="glass">
+  <button onclick="roomClick(0)">1</button>
+  <button onclick="roomClick(1)">2</button>
+  <button onclick="roomClick(2)">3</button>
+  <button onclick="roomClick(3)">4</button>
+  <button onclick="roomClick(4)">5</button>
+  <button onclick="roomClick(5)">6</button>
+</div>
+
+<!-- INFO PANEL -->
+<div id="info-panel" class="glass">
+  <h2 id="ititle" style="color:#FDB813"></h2>
+  <p id="itext"></p>
+  <p id="info-fun" style="color:#7fc873"></p>
+  <button class="cbtn" onclick="speakNow()">🔊 Read</button>
+  <button class="cbtn" onclick="openQuiz()">❓ Quiz</button>
+  <button class="cbtn" onclick="closeInfo()">✕ Close</button>
+</div>
+
+<!-- QUIZ PANEL -->
+<div id="quiz-panel" class="glass">
+  <h3 id="qtext"></h3>
+  <div id="qopts"></div>
+  <p id="qres"></p>
+  <button class="cbtn" id="qnext" onclick="closeQuiz()" style="display:none">Next ➜</button>
+</div>
+
+<!-- HEART ANATOMY PANEL -->
+<div id="heart-panel" class="glass">
+  <h2>❤ Heart Anatomy — Cross Section</h2>
+  <div id="heart-canvas-wrap">
+    <svg id="heart-svg" viewBox="0 0 500 320" xmlns="http://www.w3.org/2000/svg">
+      <!-- Background -->
+      <rect width="500" height="320" fill="#1a0505" rx="12"/>
+      <!-- Pericardium (outer) -->
+      <ellipse cx="250" cy="160" rx="180" ry="145" fill="none" stroke="#8B4040" stroke-width="3" stroke-dasharray="6 3"/>
+      <!-- Right ventricle (viewer's left = patient's right) -->
+      <path id="rv" d="M140 100 Q110 140 115 200 Q140 240 190 245 Q220 248 230 220 Q235 180 220 140 Q200 105 140 100Z"
+        fill="#8B1A1A" stroke="#c0392b" stroke-width="1.5"/>
+      <!-- Left ventricle -->
+      <path id="lv" d="M270 95 Q310 100 330 140 Q345 180 335 220 Q320 248 290 250 Q260 252 250 225 Q242 185 252 140 Q258 108 270 95Z"
+        fill="#6B0F0F" stroke="#e74c3c" stroke-width="1.5"/>
+      <!-- Septum -->
+      <path d="M230 100 Q245 160 245 250 Q248 160 268 100" fill="#5a0a0a" stroke="#c0392b" stroke-width="2"/>
+      <!-- Right atrium -->
+      <ellipse id="ra" cx="165" cy="85" rx="52" ry="38" fill="#7a1515" stroke="#c0392b" stroke-width="1.5"/>
+      <!-- Left atrium -->
+      <ellipse id="la" cx="335" cy="82" rx="52" ry="38" fill="#5a0a0a" stroke="#e74c3c" stroke-width="1.5"/>
+      <!-- Valves -->
+      <!-- Tricuspid valve (right) -->
+      <path d="M196 105 Q215 115 196 125 Q185 115 196 105Z" fill="#FFD700" stroke="#FFA500" stroke-width="1"/>
+      <!-- Mitral valve (left) -->
+      <path d="M276 105 Q295 115 276 125 Q265 115 276 105Z" fill="#FFD700" stroke="#FFA500" stroke-width="1"/>
+      <!-- Aortic valve -->
+      <circle cx="310" cy="68" r="10" fill="none" stroke="#FFD700" stroke-width="2"/>
+      <path d="M304 68 L316 68 M310 62 L310 74" stroke="#FFD700" stroke-width="1.5"/>
+      <!-- Pulmonary valve -->
+      <circle cx="190" cy="65" r="10" fill="none" stroke="#6699ff" stroke-width="2"/>
+      <path d="M184 65 L196 65 M190 59 L190 71" stroke="#6699ff" stroke-width="1.5"/>
+
+      <!-- Blood flow arrows — oxygenated (red) -->
+      <path id="flow-oxy" d="M340 82 Q380 60 370 40 Q360 20 335 25 Q310 28 300 50"
+        fill="none" stroke="#ff4444" stroke-width="2.5" stroke-dasharray="8 4"
+        style="animation:flowblood 1.5s linear infinite"/>
+      <!-- Blood flow — deoxygenated (blue) -->
+      <path id="flow-deoxy" d="M160 82 Q120 60 130 40 Q140 20 165 25 Q190 28 200 50"
+        fill="none" stroke="#4466ff" stroke-width="2.5" stroke-dasharray="8 4"
+        style="animation:flowblood 1.5s linear infinite reverse"/>
+
+      <!-- Aorta -->
+      <path d="M315 55 Q335 30 310 15 Q285 5 270 20" fill="none" stroke="#e74c3c" stroke-width="6" stroke-linecap="round"/>
+      <!-- Pulmonary artery -->
+      <path d="M185 55 Q165 30 190 15 Q215 5 230 20" fill="none" stroke="#4466ff" stroke-width="6" stroke-linecap="round"/>
+      <!-- Superior vena cava -->
+      <path d="M150 68 Q130 50 140 30 Q150 15 170 18" fill="none" stroke="#6699ff" stroke-width="5" stroke-linecap="round"/>
+      <!-- Inferior vena cava -->
+      <path d="M148 240 Q125 260 135 280 Q145 295 165 290" fill="none" stroke="#6699ff" stroke-width="5" stroke-linecap="round"/>
+
+      <!-- Heartbeat pulse line -->
+      <polyline id="pulse-line"
+        points="20,290 40,290 55,270 65,310 75,260 85,310 95,290 140,290 500,290"
+        fill="none" stroke="#00ff88" stroke-width="1.5" opacity="0.6"/>
+
+      <!-- LABELS -->
+      <text x="105" y="88" font-size="10" fill="#ffaaaa" font-family="Arial">Right Atrium</text>
+      <text x="345" y="85" font-size="10" fill="#ff6666" font-family="Arial">Left Atrium</text>
+      <text x="108" y="185" font-size="10" fill="#ffaaaa" font-family="Arial">Right Ventricle</text>
+      <text x="338" y="190" font-size="10" fill="#ff6666" font-family="Arial">Left Ventricle</text>
+      <text x="315" y="14" font-size="9" fill="#ff8888" font-family="Arial">Aorta</text>
+      <text x="170" y="14" font-size="9" fill="#8888ff" font-family="Arial">Pulm. Artery</text>
+      <text x="320" y="72" font-size="8" fill="#FFD700" font-family="Arial">Aortic V.</text>
+      <text x="172" y="72" font-size="8" fill="#FFD700" font-family="Arial">Pulm. V.</text>
+      <text x="196" y="138" font-size="8" fill="#FFD700" font-family="Arial">Tricuspid</text>
+      <text x="262" y="138" font-size="8" fill="#FFD700" font-family="Arial">Mitral</text>
+      <text x="106" y="22" font-size="8" fill="#8888ff" font-family="Arial">Sup. Vena Cava</text>
+      <text x="108" y="282" font-size="8" fill="#8888ff" font-family="Arial">Inf. Vena Cava</text>
+      <text x="240" y="165" font-size="9" fill="#cc4444" font-family="Arial">Septum</text>
+
+      <!-- LUB DUB indicator -->
+      <text id="lubdub-text" x="390" y="290" font-size="14" fill="#00ff88" font-family="Arial" font-weight="bold">LUB</text>
+    </svg>
+  </div>
+  <!-- Heart controls -->
+  <div style="display:flex;flex-wrap:wrap;gap:5px;justify-content:center;margin-bottom:10px">
+    <button class="h-btn" onclick="heartInfo('ra')">Right Atrium</button>
+    <button class="h-btn" onclick="heartInfo('la')">Left Atrium</button>
+    <button class="h-btn" onclick="heartInfo('rv')">Right Ventricle</button>
+    <button class="h-btn" onclick="heartInfo('lv')">Left Ventricle</button>
+    <button class="h-btn" onclick="heartInfo('aorta')">Aorta</button>
+    <button class="h-btn" onclick="heartInfo('valve')">Valves</button>
+    <button class="h-btn" onclick="heartInfo('blood')">Blood Flow</button>
+    <button class="h-btn" onclick="heartInfo('beat')">Heartbeat</button>
+  </div>
+  <div id="h-label-box">Click any button above to learn about that heart part.</div>
+  <br>
+  <button class="cbtn" onclick="document.getElementById('heart-panel').style.display='none';closeInfo()">✕ Close</button>
+</div>
+
+<!-- MOVE GUIDE -->
+<div id="move-guide" class="glass">
+  <strong style="color:#FDB813">Controls</strong><br>
+  W/S — forward/back<br>
+  A/D — left/right<br>
+  Mouse — look around<br>
+  Click — explore
+</div>
+
+<div id="crosshair"></div>
+
+<!-- ═══════════════ VR SCENE ═══════════════ -->
+<a-scene renderer="antialias:true" vr-mode-ui="enabled:true">
+
+  <!-- ASSETS -->
+  <a-assets timeout="8000"></a-assets>
+
+  <!-- LIGHTING -->
+  <a-light type="ambient"     color="#b0c4de" intensity="0.5"></a-light>
+  <a-light type="directional" color="#fff8e7" intensity="0.7" position="2 8 -4"></a-light>
+  <a-light id="room-light"    type="point" color="#FDB813" intensity="0.4" position="0 7 0" distance="20"></a-light>
+
+  <!-- ═══ ROOM STRUCTURE (shared) ═══ -->
+  <a-plane position="0 0 0"   rotation="-90 0 0" width="28" height="28" color="#c4a882" id="floor-el"></a-plane>
+  <a-plane id="wall-back"  position="0 4.5 -12" width="28" height="9"  color="#e8dcc8"></a-plane>
+  <a-plane id="wall-left"  position="-14 4.5 0" rotation="0 90 0"  width="28" height="9" color="#ddd0bc"></a-plane>
+  <a-plane id="wall-right" position="14 4.5 0"  rotation="0 -90 0" width="28" height="9" color="#ddd0bc"></a-plane>
+  <a-plane position="0 4.5 14" rotation="0 180 0" width="28" height="9" color="#e8dcc8"></a-plane>
+  <a-plane position="0 9 0"   rotation="90 0 0"  width="28" height="28" color="#f5f0e8" id="ceiling-el"></a-plane>
+
+  <!-- Ceiling fans -->
+  <a-entity position="-4 8.8 -2" animation="property:rotation;to:0 360 0;loop:true;dur:900;easing:linear">
+    <a-box position="1 0 0"  width="1.8" height="0.06" depth="0.3" color="#a0784a"></a-box>
+    <a-box position="-1 0 0" width="1.8" height="0.06" depth="0.3" color="#a0784a"></a-box>
+    <a-box position="0 0 1"  width="0.3" height="0.06" depth="1.8" color="#a0784a"></a-box>
+    <a-box position="0 0 -1" width="0.3" height="0.06" depth="1.8" color="#a0784a"></a-box>
+  </a-entity>
+  <a-cylinder position="-4 8.8 -2" radius="0.1" height="0.5" color="#5a3e1e"></a-cylinder>
+
+  <a-entity position="4 8.8 2" animation="property:rotation;to:0 360 0;loop:true;dur:1000;easing:linear">
+    <a-box position="1 0 0"  width="1.8" height="0.06" depth="0.3" color="#a0784a"></a-box>
+    <a-box position="-1 0 0" width="1.8" height="0.06" depth="0.3" color="#a0784a"></a-box>
+    <a-box position="0 0 1"  width="0.3" height="0.06" depth="1.8" color="#a0784a"></a-box>
+    <a-box position="0 0 -1" width="0.3" height="0.06" depth="1.8" color="#a0784a"></a-box>
+  </a-entity>
+  <a-cylinder position="4 8.8 2" radius="0.1" height="0.5" color="#5a3e1e"></a-cylinder>
+
+  <!-- Tube lights -->
+  <a-box position="-5 8.92 0"  width="0.1" height="0.06" depth="4" color="#fffde0" material="emissive:#fffde0;emissiveIntensity:0.4"></a-box>
+  <a-box position="5  8.92 0"  width="0.1" height="0.06" depth="4" color="#fffde0" material="emissive:#fffde0;emissiveIntensity:0.4"></a-box>
+
+  <!-- BLACKBOARD -->
+  <a-box position="0 3.5 -11.85" width="9.4" height="3.8" depth="0.08" color="#3d2b1a"></a-box>
+  <a-box id="board-surface" position="0 3.5 -11.8" width="9" height="3.5" depth="0.06" color="#1a3d1a"></a-box>
+  <a-box position="0 1.9 -11.75" width="9" height="0.12" depth="0.18" color="#5C4A0A"></a-box>
+  <a-text id="board-text"  value="Solar System — VR School"   position="0 4.2 -11.7" align="center" color="#7fc873" width="8.5"></a-text>
+  <a-text id="board-text2" value="Click any object to explore!" position="0 3.4 -11.7" align="center" color="#a8e89c" width="7"></a-text>
+
+  <!-- Teacher desk -->
+  <a-box position="0 0.9 -8.5" width="3.2" height="0.1" depth="1.6" color="#8B6914"></a-box>
+  <a-box position="-1.4 0.45 -7.8" width="0.14" height="0.9" depth="0.14" color="#5C4A0A"></a-box>
+  <a-box position="1.4 0.45 -7.8"  width="0.14" height="0.9" depth="0.14" color="#5C4A0A"></a-box>
+  <a-box position="-1.4 0.45 -9.2" width="0.14" height="0.9" depth="0.14" color="#5C4A0A"></a-box>
+  <a-box position="1.4 0.45 -9.2"  width="0.14" height="0.9" depth="0.14" color="#5C4A0A"></a-box>
+  <a-box position="-0.9 1.0 -8.5"  width="0.28" height="0.32" depth="0.42" color="#c0392b"></a-box>
+  <a-box position="-0.5 1.0 -8.5"  width="0.28" height="0.26" depth="0.42" color="#2980b9"></a-box>
+  <a-sphere position="1.0 1.12 -8.5" radius="0.16" color="#1E90FF"></a-sphere>
+  <a-cylinder position="1.0 0.93 -8.5" radius="0.03" height="0.22" color="#5C4A0A"></a-cylinder>
+  <a-sphere position="0.6 1.0 -8.5" radius="0.09" color="#e74c3c"></a-sphere>
+  <a-box position="-1.4 0.98 -8.2" width="0.72" height="0.04" depth="0.5" color="#2c3e50"></a-box>
+  <a-box position="-1.4 1.22 -8.48" width="0.72" height="0.46" depth="0.04" color="#2c3e50" rotation="-10 0 0"></a-box>
+  <a-box position="-1.4 1.22 -8.45" width="0.66" height="0.40" depth="0.02" color="#1abc9c" material="emissive:#1abc9c;emissiveIntensity:0.2"></a-box>
+
+  <!-- TEACHER -->
+  <a-box    position="0 1.6 -9.4"  width="0.58" height="0.95" depth="0.3" color="#8e44ad"></a-box>
+  <a-sphere position="0 2.28 -9.4" radius="0.26" color="#FDBCB4"></a-sphere>
+  <a-sphere position="0 2.46 -9.4" radius="0.2" color="#4a2800" scale="1 0.45 1"></a-sphere>
+  <a-box position="-0.62 1.8 -9.62" width="0.16" height="0.58" depth="0.16" color="#8e44ad" rotation="0 0 45"></a-box>
+  <a-box position="0.62 1.52 -9.4"  width="0.16" height="0.58" depth="0.16" color="#8e44ad" rotation="0 0 -12"></a-box>
+  <a-box position="-0.98 2.05 -9.78" width="0.04" height="0.75" depth="0.04" color="#5C4A0A" rotation="0 0 52"></a-box>
+
+  <!-- STUDENT DESKS row 1 -->
+  <a-box position="-6 0.82 -6"  width="1.6" height="0.09" depth="1.1" color="#A0784A"></a-box>
+  <a-box position="-2 0.82 -6"  width="1.6" height="0.09" depth="1.1" color="#A0784A"></a-box>
+  <a-box position="2  0.82 -6"  width="1.6" height="0.09" depth="1.1" color="#A0784A"></a-box>
+  <a-box position="6  0.82 -6"  width="1.6" height="0.09" depth="1.1" color="#A0784A"></a-box>
+  <!-- STUDENT DESKS row 2 -->
+  <a-box position="-6 0.82 -3"  width="1.6" height="0.09" depth="1.1" color="#A0784A"></a-box>
+  <a-box position="-2 0.82 -3"  width="1.6" height="0.09" depth="1.1" color="#A0784A"></a-box>
+  <a-box position="2  0.82 -3"  width="1.6" height="0.09" depth="1.1" color="#A0784A"></a-box>
+  <a-box position="6  0.82 -3"  width="1.6" height="0.09" depth="1.1" color="#A0784A"></a-box>
+
+  <!-- Books on desks -->
+  <a-box position="-6.4 0.96 -6"  width="0.24" height="0.24" depth="0.36" color="#e74c3c"></a-box>
+  <a-box position="-2.4 0.96 -6"  width="0.24" height="0.20" depth="0.36" color="#3498db"></a-box>
+  <a-box position="1.6  0.96 -6"  width="0.24" height="0.22" depth="0.36" color="#2ecc71"></a-box>
+  <a-box position="5.6  0.96 -6"  width="0.24" height="0.26" depth="0.36" color="#f39c12"></a-box>
+  <a-box position="-6.4 0.96 -3"  width="0.24" height="0.22" depth="0.36" color="#9b59b6"></a-box>
+  <a-box position="-2.4 0.96 -3"  width="0.24" height="0.24" depth="0.36" color="#1abc9c"></a-box>
+  <a-box position="1.6  0.96 -3"  width="0.24" height="0.20" depth="0.36" color="#e67e22"></a-box>
+  <a-box position="5.6  0.96 -3"  width="0.24" height="0.22" depth="0.36" color="#e74c3c"></a-box>
+
+  <!-- SITTING STUDENTS row 1 -->
+  <a-box    position="-6 1.3 -5.3"  width="0.5" height="0.68" depth="0.28" color="#2980b9"></a-box>
+  <a-sphere position="-6 1.84 -5.3" radius="0.23" color="#FDBCB4"></a-sphere>
+  <a-sphere position="-6 2.0 -5.3"  radius="0.17" color="#4a2800" scale="1 0.42 1"></a-sphere>
+  <a-box    position="-2 1.3 -5.3"  width="0.5" height="0.68" depth="0.28" color="#27ae60"></a-box>
+  <a-sphere position="-2 1.84 -5.3" radius="0.23" color="#d4a574"></a-sphere>
+  <a-sphere position="-2 2.0 -5.3"  radius="0.17" color="#1a0a00" scale="1 0.42 1"></a-sphere>
+  <a-box    position="2 1.3 -5.3"   width="0.5" height="0.68" depth="0.28" color="#c0392b"></a-box>
+  <a-sphere position="2 1.84 -5.3"  radius="0.23" color="#FDBCB4"></a-sphere>
+  <a-sphere position="2 2.0 -5.3"   radius="0.17" color="#8B4513" scale="1 0.42 1"></a-sphere>
+  <a-box    position="6 1.3 -5.3"   width="0.5" height="0.68" depth="0.28" color="#e67e22"></a-box>
+  <a-sphere position="6 1.84 -5.3"  radius="0.23" color="#d4a574"></a-sphere>
+  <a-sphere position="6 2.0 -5.3"   radius="0.17" color="#2c1000" scale="1 0.42 1"></a-sphere>
+  <!-- SITTING STUDENTS row 2 -->
+  <a-box    position="-6 1.3 -2.3"  width="0.5" height="0.68" depth="0.28" color="#8e44ad"></a-box>
+  <a-sphere position="-6 1.84 -2.3" radius="0.23" color="#FDBCB4"></a-sphere>
+  <a-sphere position="-6 2.0 -2.3"  radius="0.17" color="#4a2800" scale="1 0.5 1"></a-sphere>
+  <a-box    position="-2 1.3 -2.3"  width="0.5" height="0.68" depth="0.28" color="#16a085"></a-box>
+  <a-sphere position="-2 1.84 -2.3" radius="0.23" color="#d4a574"></a-sphere>
+  <a-sphere position="-2 2.0 -2.3"  radius="0.17" color="#1a0a00" scale="1 0.45 1"></a-sphere>
+
+  <!-- STANDING STUDENTS near objects -->
+  <a-box    position="-1.2 1.1 -3.5"  width="0.5" height="1.15" depth="0.28" color="#2471a3"></a-box>
+  <a-sphere position="-1.2 1.88 -3.5" radius="0.23" color="#FDBCB4"></a-sphere>
+  <a-sphere position="-1.2 2.04 -3.5" radius="0.17" color="#4a2800" scale="1 0.5 1"></a-sphere>
+  <a-box    position="-0.62 1.55 -3.5" width="0.15" height="0.52" depth="0.15" color="#2471a3" rotation="0 0 -55"></a-box>
+  <a-box    position="1.2 1.1 -3.5"   width="0.5" height="1.15" depth="0.28" color="#a93226"></a-box>
+  <a-sphere position="1.2 1.88 -3.5"  radius="0.23" color="#d4a574"></a-sphere>
+  <a-sphere position="1.2 2.04 -3.5"  radius="0.17" color="#2c1000" scale="1 0.45 1"></a-sphere>
+  <a-box    position="0.62 1.55 -3.5"  width="0.15" height="0.52" depth="0.15" color="#a93226" rotation="0 0 55"></a-box>
+
+  <!-- WALKING STUDENT -->
+  <a-entity id="ws" position="2 0 -2.3">
+    <a-box    id="ws-body" position="0 1.1 0"  width="0.5" height="1.15" depth="0.28" color="#1a5276"></a-box>
+    <a-sphere id="ws-head" position="0 1.88 0" radius="0.23" color="#FDBCB4"></a-sphere>
+    <a-sphere position="0 2.04 0" radius="0.17" color="#8B4513" scale="1 0.45 1"></a-sphere>
+    <a-box id="ws-arm" position="-0.32 1.3 0" width="0.14" height="0.55" depth="0.14" color="#1a5276" rotation="0 0 15"></a-box>
+    <a-box position="0.32 1.3 0" width="0.14" height="0.55" depth="0.14" color="#1a5276" rotation="0 0 -15"></a-box>
+    <a-box id="leg-l" position="-0.13 0.3 0" width="0.18" height="0.6" depth="0.2" color="#1a3a5c"></a-box>
+    <a-box id="leg-r" position="0.13 0.3 0"  width="0.18" height="0.6" depth="0.2" color="#1a3a5c"></a-box>
+    <a-sphere id="ws-hand" position="-0.5 1.15 0" radius="0.06" color="#FDBCB4"></a-sphere>
+  </a-entity>
+
+  <!-- BOOKSHELF -->
+  <a-box position="-13.7 2.5 -5" width="0.22" height="5" depth="2" color="#5C4A0A"></a-box>
+  <a-box position="-13.4 0.8 -5" width="0.22" height="0.09" depth="1.9" color="#8B6914"></a-box>
+  <a-box position="-13.4 1.8 -5" width="0.22" height="0.09" depth="1.9" color="#8B6914"></a-box>
+  <a-box position="-13.4 2.8 -5" width="0.22" height="0.09" depth="1.9" color="#8B6914"></a-box>
+  <a-box position="-13.3 1.3 -4.4" width="0.12" height="0.46" depth="0.3" color="#e74c3c"></a-box>
+  <a-box position="-13.3 1.3 -4.7" width="0.12" height="0.42" depth="0.3" color="#3498db"></a-box>
+  <a-box position="-13.3 1.3 -5.0" width="0.12" height="0.50" depth="0.3" color="#2ecc71"></a-box>
+  <a-box position="-13.3 1.3 -5.3" width="0.12" height="0.38" depth="0.3" color="#f39c12"></a-box>
+  <a-box position="-13.3 2.3 -4.4" width="0.12" height="0.44" depth="0.3" color="#1abc9c"></a-box>
+  <a-box position="-13.3 2.3 -4.7" width="0.12" height="0.48" depth="0.3" color="#e67e22"></a-box>
+
+  <!-- WINDOWS -->
+  <a-box position="13.88 4.5 -5" width="0.08" height="3" depth="2.5" color="#87ceeb" opacity="0.35"></a-box>
+  <a-box position="13.82 6.0 -5" width="0.16" height="0.16" depth="2.6" color="#5C4A0A"></a-box>
+  <a-box position="13.82 3.0 -5" width="0.16" height="0.16" depth="2.6" color="#5C4A0A"></a-box>
+  <a-box position="13.82 4.5 -3.8" width="0.16" height="3.3" depth="0.16" color="#5C4A0A"></a-box>
+  <a-box position="13.82 4.5 -6.2" width="0.16" height="3.3" depth="0.16" color="#5C4A0A"></a-box>
+
+  <!-- CLOCK -->
+  <a-cylinder position="-10 7 -11.85" radius="0.55" height="0.1" color="#f0ebe0"></a-cylinder>
+  <a-cylinder position="-10 7 -11.8"  radius="0.5"  height="0.06" color="#2c3e50"></a-cylinder>
+  <a-box position="-10 7 -11.74" width="0.05" height="0.36" depth="0.05" color="#f0ebe0" rotation="0 0 20"></a-box>
+  <a-box position="-10 7 -11.74" width="0.05" height="0.28" depth="0.05" color="#f0ebe0" rotation="0 0 -65"></a-box>
+
+  <!-- DUSTBIN + PLANT -->
+  <a-cylinder position="-12.5 0.35 -11" radius="0.24" height="0.65" color="#7f8c8d" open-ended="true"></a-cylinder>
+  <a-cylinder position="12.5 0.3 -11"   radius="0.22" height="0.55" color="#8B6914"></a-cylinder>
+  <a-sphere   position="12.5 0.85 -11"  radius="0.32" color="#27ae60" material="roughness:0.9"></a-sphere>
+  <a-sphere   position="12.2 1.0 -10.8" radius="0.18" color="#2ecc71" material="roughness:0.9"></a-sphere>
+
+  <!-- NOTICE BOARD -->
+  <a-box position="-6 5.5 -11.88" width="4" height="2.8" depth="0.07" color="#d4a843"></a-box>
+  <a-text value="Notice Board" position="-6 6.6 -11.78" align="center" color="#5C3A00" width="4"></a-text>
+  <a-box position="-7.2 5.8 -11.81" width="0.9" height="0.7" depth="0.03" color="white"></a-box>
+  <a-box position="-6.1 5.8 -11.81" width="0.9" height="0.7" depth="0.03" color="#fff9c4"></a-box>
+  <a-box position="-5.0 5.8 -11.81" width="0.9" height="0.7" depth="0.03" color="#ffcdd2"></a-box>
+
+  <!-- MOTIVATIONAL POSTER -->
+  <a-box position="6 5.5 -11.88" width="3.5" height="2.5" depth="0.07" color="#1a3d6e"></a-box>
+  <a-text value="Dream Big!" position="6 6.0 -11.78" align="center" color="#FDB813" width="4"></a-text>
+  <a-text value="Knowledge is Power" position="6 5.3 -11.78" align="center" color="#a8e89c" width="3.5"></a-text>
+
+  <!-- ═══ ROOM-SPECIFIC OBJECTS ═══ -->
+
+  <!-- ── ROOM 1: SOLAR SYSTEM ── -->
+  <a-entity id="room-solar" visible="true">
+    <!-- Orbit rings -->
+    <a-torus position="0 1.8 -3.5" radius="0.78" radius-tubular="0.007" color="#ffffff" opacity="0.15" rotation="90 0 0"></a-torus>
+    <a-torus position="0 1.8 -3.5" radius="1.18" radius-tubular="0.007" color="#ffffff" opacity="0.12" rotation="90 0 0"></a-torus>
+    <a-torus position="0 1.8 -3.5" radius="1.45" radius-tubular="0.007" color="#ffffff" opacity="0.10" rotation="90 0 0"></a-torus>
+    <a-torus position="0 1.8 -3.5" radius="1.85" radius-tubular="0.007" color="#ffffff" opacity="0.08" rotation="90 0 0"></a-torus>
+    <!-- Sun -->
+    <a-sphere position="0 1.8 -3.5" radius="0.30" color="#FDB813"
+      material="emissive:#FDB813;emissiveIntensity:0.5"
+      animation="property:rotation;to:0 360 0;loop:true;dur:3500;easing:linear"></a-sphere>
+    <a-light type="point" color="#FDB813" intensity="0.6" position="0 1.8 -3.5" distance="6"></a-light>
+    <!-- Earth -->
+    <a-entity position="0 1.8 -3.5" animation="property:rotation;to:0 360 0;loop:true;dur:6000;easing:linear">
+      <a-sphere position="0.78 0 0" radius="0.16" color="#1E90FF" animation="property:rotation;to:0 360 0;loop:true;dur:2000;easing:linear"></a-sphere>
+    </a-entity>
+    <!-- Mars -->
+    <a-entity position="0 1.8 -3.5" animation="property:rotation;to:0 360 0;loop:true;dur:10000;easing:linear">
+      <a-sphere position="1.18 0 0" radius="0.11" color="#E27B58"></a-sphere>
+    </a-entity>
+    <!-- Moon -->
+    <a-entity position="0 1.8 -3.5" animation="property:rotation;to:0 360 0;loop:true;dur:6000;easing:linear">
+      <a-entity position="0.78 0 0" animation="property:rotation;to:0 360 0;loop:true;dur:2000;easing:linear">
+        <a-sphere position="0.26 0 0" radius="0.065" color="#C8C8C8"></a-sphere>
+      </a-entity>
+    </a-entity>
+    <!-- Jupiter -->
+    <a-entity position="0 1.8 -3.5" animation="property:rotation;to:0 360 0;loop:true;dur:13000;easing:linear">
+      <a-sphere position="1.45 0 0" radius="0.20" color="#C88B3A"></a-sphere>
+    </a-entity>
+    <!-- Saturn + ring -->
+    <a-entity position="0 1.8 -3.5" animation="property:rotation;to:0 360 0;loop:true;dur:18000;easing:linear">
+      <a-sphere position="1.85 0 0" radius="0.14" color="#C2A55A"></a-sphere>
+      <a-torus  position="1.85 0 0" radius="0.26" radius-tubular="0.028" rotation="80 0 0" color="#D4B87A" opacity="0.85"></a-torus>
+    </a-entity>
+    <a-text value="Solar System" position="0 2.55 -3.5" align="center" color="#FDB813" width="4"></a-text>
+    <a-cylinder position="0 0.02 -3.5" radius="2.2" height="0.04" color="#FDB813" opacity="0.12"></a-cylinder>
+    <!-- Wall decorations: stars/space theme -->
+    <a-sphere position="-11 5 -11.7" radius="0.06" color="white" material="emissive:white;emissiveIntensity:0.8"></a-sphere>
+    <a-sphere position="-9  7 -11.7" radius="0.05" color="white" material="emissive:white;emissiveIntensity:0.8"></a-sphere>
+    <a-sphere position="-7  6 -11.7" radius="0.07" color="white" material="emissive:white;emissiveIntensity:0.8"></a-sphere>
+    <a-sphere position="11  5 -11.7" radius="0.06" color="white" material="emissive:white;emissiveIntensity:0.8"></a-sphere>
+    <a-sphere position="9   7 -11.7" radius="0.05" color="#FDB813" material="emissive:#FDB813;emissiveIntensity:0.8"></a-sphere>
+    <a-sphere position="-13 5 0"    radius="0.07" color="white" material="emissive:white;emissiveIntensity:0.8"></a-sphere>
+    <a-sphere position="-13 6 -2"   radius="0.05" color="white" material="emissive:white;emissiveIntensity:0.8"></a-sphere>
+    <a-sphere position="-13 7 2"    radius="0.06" color="#FDB813" material="emissive:#FDB813;emissiveIntensity:0.6"></a-sphere>
+    <a-sphere position="13  5 0"    radius="0.07" color="white" material="emissive:white;emissiveIntensity:0.8"></a-sphere>
+    <a-sphere position="13  6 -2"   radius="0.05" color="white" material="emissive:white;emissiveIntensity:0.8"></a-sphere>
+  </a-entity>
+
+  <!-- ── ROOM 2: HEART ANATOMY ── -->
+  <a-entity id="room-heart" visible="false">
+    <!-- Large 3D heart model (beating) -->
+    <a-entity position="0 2.0 -3.5" id="heart-3d"
+      animation="property:scale;from:1 1 1;to:1.1 1.1 1.1;loop:true;dur:500;direction:alternate;easing:easeInOutSine">
+      <!-- Left lobe -->
+      <a-sphere position="-0.22 0.22 0" radius="0.42" color="#c0392b" material="roughness:0.4;metalness:0.1"></a-sphere>
+      <!-- Right lobe -->
+      <a-sphere position="0.22 0.22 0"  radius="0.42" color="#c0392b" material="roughness:0.4;metalness:0.1"></a-sphere>
+      <!-- Bottom point -->
+      <a-cone position="0 -0.28 0" radius-bottom="0" radius-top="0.48" height="0.65" color="#a93226" rotation="0 0 180" material="roughness:0.4"></a-cone>
+      <!-- Aorta tube -->
+      <a-cylinder position="0.2 0.7 0" radius="0.09" height="0.5" color="#e74c3c" rotation="15 0 0"></a-cylinder>
+      <!-- Pulm artery -->
+      <a-cylinder position="-0.2 0.7 0" radius="0.08" height="0.45" color="#3498db" rotation="-15 0 0"></a-cylinder>
+      <!-- Vena cava -->
+      <a-cylinder position="-0.4 0.5 0" radius="0.07" height="0.4" color="#5566bb" rotation="-30 0 0"></a-cylinder>
+    </a-entity>
+    <!-- "Click to dissect" text -->
+    <a-text value="Click heart to see inside!" position="0 3.4 -3.5" align="center" color="#e74c3c" width="4"></a-text>
+    <!-- Pulse indicator ring -->
+    <a-torus position="0 2.0 -3.5" radius="0.8" radius-tubular="0.02" color="#e74c3c" opacity="0.4"
+      animation="property:scale;from:1 1 1;to:1.15 1.15 1.15;loop:true;dur:500;direction:alternate"></a-torus>
+    <!-- Blood vessels on walls (heart room decoration) -->
+    <a-cylinder position="-13.7 3 -3" radius="0.06" height="3" color="#c0392b" opacity="0.6" rotation="20 0 30"></a-cylinder>
+    <a-cylinder position="-13.7 5 -5" radius="0.05" height="2.5" color="#3498db" opacity="0.5" rotation="-15 0 20"></a-cylinder>
+    <a-cylinder position="-13.7 4 -7" radius="0.07" height="3" color="#c0392b" opacity="0.6" rotation="10 0 -25"></a-cylinder>
+    <a-cylinder position="13.7 3 -3"  radius="0.06" height="3" color="#c0392b" opacity="0.6" rotation="20 0 -30"></a-cylinder>
+    <a-cylinder position="13.7 5 -5"  radius="0.05" height="2.5" color="#3498db" opacity="0.5" rotation="-15 0 -20"></a-cylinder>
+    <a-cylinder position="0 6 -11.7"  radius="0.06" height="4" color="#c0392b" opacity="0.4" rotation="0 0 60"></a-cylinder>
+    <a-cylinder position="-3 7 -11.7" radius="0.05" height="3" color="#3498db" opacity="0.4" rotation="0 0 -40"></a-cylinder>
+    <a-cylinder position="3 7 -11.7"  radius="0.06" height="3" color="#c0392b" opacity="0.4" rotation="0 0 40"></a-cylinder>
+    <!-- Red blood cell particles -->
+    <a-sphere position="-11 2 -11.7" radius="0.08" color="#e74c3c" material="emissive:#c0392b;emissiveIntensity:0.4"
+      animation="property:position;from:-11 2 -11.7;to:-10 3 -11.7;loop:true;dur:2000;direction:alternate"></a-sphere>
+    <a-sphere position="-9  4 -11.7" radius="0.07" color="#e74c3c" material="emissive:#c0392b;emissiveIntensity:0.4"
+      animation="property:position;from:-9 4 -11.7;to:-8 2 -11.7;loop:true;dur:1800;direction:alternate"></a-sphere>
+    <a-sphere position="9   3 -11.7" radius="0.08" color="#3498db" material="emissive:#2980b9;emissiveIntensity:0.4"
+      animation="property:position;from:9 3 -11.7;to:10 5 -11.7;loop:true;dur:2200;direction:alternate"></a-sphere>
+    <a-text value="Heart Anatomy Room" position="0 8.2 0" align="center" color="#e74c3c" width="6"></a-text>
+  </a-entity>
+
+  <!-- ── ROOM 3: GEOMETRY ── -->
+  <a-entity id="room-geometry" visible="false">
+    <!-- 5 rotating geometric shapes -->
+    <a-box position="-2.5 1.8 -4" width="0.7" height="0.7" depth="0.7" color="#3498db"
+      animation="property:rotation;to:360 360 0;loop:true;dur:5000"></a-box>
+    <a-sphere position="0 1.8 -4" radius="0.42" color="#e74c3c"
+      animation__rot="property:rotation;to:0 360 0;loop:true;dur:4000"
+      animation__bob="property:position;from:0 1.8 -4;to:0 2.2 -4;loop:true;dur:1500;direction:alternate"></a-sphere>
+    <a-cone position="2.5 1.8 -4" radius-bottom="0.4" radius-top="0" height="0.9" color="#2ecc71"
+      animation="property:rotation;to:0 360 360;loop:true;dur:6000"></a-cone>
+    <a-cylinder position="-1 1.8 -5" radius="0.3" height="0.8" color="#f39c12"
+      animation="property:rotation;to:360 0 0;loop:true;dur:5500"></a-cylinder>
+    <a-octahedron position="1 1.8 -5" radius="0.42" color="#9b59b6"
+      animation="property:rotation;to:0 360 360;loop:true;dur:4500"></a-octahedron>
+    <a-torus position="0 1.8 -3.5" radius="0.55" radius-tubular="0.12" color="#e67e22"
+      animation="property:rotation;to:360 360 0;loop:true;dur:7000"></a-torus>
+    <a-text value="Geometry Shapes" position="0 2.9 -3.5" align="center" color="#3498db" width="4"></a-text>
+    <!-- Geometric wall decorations -->
+    <a-box position="-13.7 3 -3" width="0.3" height="0.3" depth="0.3" color="#3498db" opacity="0.5"
+      animation="property:rotation;to:360 360 0;loop:true;dur:3000"></a-box>
+    <a-box position="-13.7 5 -5" width="0.25" height="0.25" depth="0.25" color="#e74c3c" opacity="0.5"
+      animation="property:rotation;to:0 360 360;loop:true;dur:2500"></a-box>
+    <a-cone position="-13.7 4 -7" radius-bottom="0.15" radius-top="0" height="0.35" color="#2ecc71" opacity="0.5"
+      animation="property:rotation;to:0 360 0;loop:true;dur:4000"></a-cone>
+    <a-box position="13.7 3 -3" width="0.3" height="0.3" depth="0.3" color="#9b59b6" opacity="0.5"
+      animation="property:rotation;to:360 0 360;loop:true;dur:3500"></a-box>
+    <a-cone position="13.7 5 -5" radius-bottom="0.15" radius-top="0" height="0.35" color="#f39c12" opacity="0.5"
+      animation="property:rotation;to:0 360 0;loop:true;dur:4000"></a-cone>
+    <a-cylinder position="0 7 -11.7" radius="0.2" height="0.5" color="#3498db" opacity="0.4"></a-cylinder>
+    <a-box position="-4 7.5 -11.7" width="0.3" height="0.3" depth="0.1" color="#e74c3c" opacity="0.4"></a-box>
+    <a-box position="4  7.5 -11.7" width="0.3" height="0.3" depth="0.1" color="#2ecc71" opacity="0.4"></a-box>
+    <a-text value="Geometry Shapes Room" position="0 8.2 0" align="center" color="#3498db" width="6"></a-text>
+  </a-entity>
+
+  <!-- ── ROOM 4: WORLD MAP / GEOGRAPHY ── -->
+  <a-entity id="room-world" visible="false">
+    <!-- Giant globe -->
+    <a-sphere position="0 2.2 -4" radius="1.3" color="#1E90FF" material="roughness:0.3"
+      animation="property:rotation;to:0 360 0;loop:true;dur:20000">
+    </a-sphere>
+    <!-- Continent patches -->
+    <a-sphere position="0.5 2.8 -2.78" radius="0.42" color="#27ae60" material="roughness:0.8"></a-sphere>
+    <a-sphere position="-0.6 2.6 -2.82" radius="0.50" color="#27ae60" material="roughness:0.8"></a-sphere>
+    <a-sphere position="1.0 2.0 -2.85" radius="0.38" color="#27ae60" material="roughness:0.8"></a-sphere>
+    <a-sphere position="-0.2 1.4 -2.80" radius="0.35" color="#27ae60" material="roughness:0.8"></a-sphere>
+    <a-sphere position="0.8 1.6 -2.78" radius="0.28" color="#27ae60" material="roughness:0.8"></a-sphere>
+    <a-text value="World Geography" position="0 3.8 -3.5" align="center" color="#27ae60" width="4"></a-text>
+    <!-- Compass -->
+    <a-cylinder position="0 0.05 -3.5" radius="0.8" height="0.05" color="#5C4A0A"></a-cylinder>
+    <a-text value="N" position="0 0.15 -4.2"  align="center" color="#e74c3c" width="1.5"></a-text>
+    <a-text value="S" position="0 0.15 -2.8"  align="center" color="#e74c3c" width="1.5"></a-text>
+    <a-text value="E" position="0.7 0.15 -3.5" align="center" color="#3498db" width="1.5"></a-text>
+    <a-text value="W" position="-0.7 0.15 -3.5" align="center" color="#3498db" width="1.5"></a-text>
+    <!-- Map grid on walls -->
+    <a-plane position="-13.85 5 -4" rotation="0 90 0" width="6" height="4" color="#1a3d6e" opacity="0.7"></a-plane>
+    <a-text value="World Map" position="-13.7 7 -4" rotation="0 90 0" align="center" color="#27ae60" width="4"></a-text>
+    <a-plane position="13.85 5 -4"  rotation="0 -90 0" width="6" height="4" color="#1a3d6e" opacity="0.7"></a-plane>
+    <!-- Blue ocean particles on walls -->
+    <a-sphere position="-11 4 -11.7" radius="0.1" color="#1E90FF" opacity="0.5"
+      animation="property:position;from:-11 4 -11.7;to:-11 5 -11.7;loop:true;dur:3000;direction:alternate"></a-sphere>
+    <a-sphere position="-8  6 -11.7" radius="0.08" color="#3498db" opacity="0.5"
+      animation="property:position;from:-8 6 -11.7;to:-8 4 -11.7;loop:true;dur:2500;direction:alternate"></a-sphere>
+    <a-sphere position="8   5 -11.7" radius="0.09" color="#1E90FF" opacity="0.5"
+      animation="property:position;from:8 5 -11.7;to:8 7 -11.7;loop:true;dur:2800;direction:alternate"></a-sphere>
+    <a-text value="World Geography Room" position="0 8.2 0" align="center" color="#27ae60" width="6"></a-text>
+  </a-entity>
+
+  <!-- ── ROOM 5: HUMAN BODY ── -->
+  <a-entity id="room-body" visible="false">
+    <!-- Skeleton / human body outline -->
+    <!-- Skull -->
+    <a-sphere position="0 3.6 -3.5" radius="0.3" color="#f5f5dc" material="roughness:0.9"></a-sphere>
+    <a-sphere position="0 3.35 -3.5" radius="0.22" color="#e8e8c8" material="roughness:0.9"></a-sphere>
+    <!-- Spine -->
+    <a-cylinder position="0 2.4 -3.5" radius="0.055" height="1.5" color="#f5f5dc"></a-cylinder>
+    <!-- Ribs -->
+    <a-torus position="0 2.8 -3.5" radius="0.32" radius-tubular="0.038" color="#f5f5dc" opacity="0.9"></a-torus>
+    <a-torus position="0 2.6 -3.5" radius="0.34" radius-tubular="0.038" color="#f5f5dc" opacity="0.9"></a-torus>
+    <a-torus position="0 2.4 -3.5" radius="0.33" radius-tubular="0.038" color="#f5f5dc" opacity="0.9"></a-torus>
+    <a-torus position="0 2.2 -3.5" radius="0.30" radius-tubular="0.038" color="#f5f5dc" opacity="0.9"></a-torus>
+    <a-torus position="0 2.0 -3.5" radius="0.28" radius-tubular="0.038" color="#f5f5dc" opacity="0.9"></a-torus>
+    <!-- Pelvis -->
+    <a-torus position="0 1.68 -3.5" radius="0.28" radius-tubular="0.055" color="#f5f5dc" rotation="70 0 0"></a-torus>
+    <!-- Upper arms -->
+    <a-cylinder position="-0.48 2.65 -3.5" radius="0.055" height="0.55" color="#f5f5dc" rotation="0 0 25"></a-cylinder>
+    <a-cylinder position="0.48 2.65 -3.5"  radius="0.055" height="0.55" color="#f5f5dc" rotation="0 0 -25"></a-cylinder>
+    <!-- Forearms -->
+    <a-cylinder position="-0.72 2.22 -3.5" radius="0.045" height="0.52" color="#f5f5dc" rotation="0 0 12"></a-cylinder>
+    <a-cylinder position="0.72 2.22 -3.5"  radius="0.045" height="0.52" color="#f5f5dc" rotation="0 0 -12"></a-cylinder>
+    <!-- Upper legs -->
+    <a-cylinder position="-0.22 1.18 -3.5" radius="0.065" height="0.65" color="#f5f5dc" rotation="0 0 5"></a-cylinder>
+    <a-cylinder position="0.22 1.18 -3.5"  radius="0.065" height="0.65" color="#f5f5dc" rotation="0 0 -5"></a-cylinder>
+    <!-- Lower legs -->
+    <a-cylinder position="-0.24 0.5 -3.5" radius="0.05" height="0.65" color="#f5f5dc"></a-cylinder>
+    <a-cylinder position="0.24 0.5 -3.5"  radius="0.05" height="0.65" color="#f5f5dc"></a-cylinder>
+    <!-- Body organs (simplified) -->
+    <!-- Brain -->
+    <a-sphere position="0 3.62 -3.5" radius="0.18" color="#f4a0a0" opacity="0.5"
+      animation="property:scale;from:1 1 1;to:1.04 1.04 1.04;loop:true;dur:1000;direction:alternate"></a-sphere>
+    <!-- Lungs -->
+    <a-sphere position="-0.22 2.7 -3.5" radius="0.18" color="#f0c0b0" opacity="0.55"
+      animation="property:scale;from:1 1 1;to:1.1 1.1 1.1;loop:true;dur:1500;direction:alternate"></a-sphere>
+    <a-sphere position="0.22 2.7 -3.5"  radius="0.18" color="#f0c0b0" opacity="0.55"
+      animation="property:scale;from:1 1 1;to:1.1 1.1 1.1;loop:true;dur:1500;direction:alternate"></a-sphere>
+    <!-- Heart in body -->
+    <a-sphere position="-0.08 2.5 -3.5" radius="0.10" color="#e74c3c" opacity="0.8"
+      animation="property:scale;from:1 1 1;to:1.18 1.18 1.18;loop:true;dur:500;direction:alternate;easing:easeInOutSine"></a-sphere>
+    <!-- Stomach -->
+    <a-sphere position="0 2.15 -3.5" radius="0.12" color="#f9e4a0" opacity="0.5"></a-sphere>
+    <a-text value="Human Body" position="0 4.1 -3.5" align="center" color="#f5f5dc" width="4"></a-text>
+    <!-- Organ/anatomy particles on walls -->
+    <a-sphere position="-13.7 3 -3" radius="0.1" color="#e74c3c" opacity="0.6"
+      animation="property:scale;from:1 1 1;to:1.3 1.3 1.3;loop:true;dur:800;direction:alternate"></a-sphere>
+    <a-sphere position="-13.7 5 -5" radius="0.09" color="#f0c0b0" opacity="0.5"
+      animation="property:scale;from:1 1 1;to:1.2 1.2 1.2;loop:true;dur:1200;direction:alternate"></a-sphere>
+    <a-sphere position="-13.7 4 -7" radius="0.08" color="#f4a0a0" opacity="0.5"
+      animation="property:scale;from:1 1 1;to:1.25 1.25 1.25;loop:true;dur:1000;direction:alternate"></a-sphere>
+    <a-sphere position="13.7 3 -3"  radius="0.1" color="#e74c3c" opacity="0.6"
+      animation="property:scale;from:1 1 1;to:1.3 1.3 1.3;loop:true;dur:900;direction:alternate"></a-sphere>
+    <a-sphere position="13.7 5 -5"  radius="0.09" color="#f0c0b0" opacity="0.5"
+      animation="property:scale;from:1 1 1;to:1.2 1.2 1.2;loop:true;dur:1100;direction:alternate"></a-sphere>
+    <!-- DNA helix suggestion on back wall -->
+    <a-cylinder position="-2 4 -11.7" radius="0.04" height="4" color="#3498db" opacity="0.4" rotation="0 0 15"></a-cylinder>
+    <a-cylinder position="2  4 -11.7" radius="0.04" height="4" color="#e74c3c" opacity="0.4" rotation="0 0 -15"></a-cylinder>
+    <a-text value="Human Body Room" position="0 8.2 0" align="center" color="#f5f5dc" width="6"></a-text>
+  </a-entity>
+
+  <!-- CAMERA -->
+  <a-camera id="cam" position="0 1.9 8"
+    wasd-controls="acceleration:25;fly:false"
+    look-controls="pointerLockEnabled:false"
+    rotation="-4 0 0">
+    <a-cursor color="#FDB813" fuse="false"></a-cursor>
+  </a-camera>
+
+</a-scene>
+
+<script>
+// ══ STATE ══════════════════════════════════════════
+let playerName  = 'Explorer';
+let curRoom     = 'solar';
+let curPlanet   = null;
+let quizActive  = false;
+let totalPts    = 0;
+let streak      = 0;
+let timerSec    = 90;
+let timerInt    = null;
+let timerOn     = false;
+let walkDone    = false;
+const visited   = new Set();
+
+// ══ ROOM CONFIG ═════════════════════════════════════
+const ROOMS = {
+  solar:    { label:'Solar System',  color:'#FDB813', board:'Solar System',  board2:'Click any planet to explore!',    wallColor:'#1a1a2e', lightColor:'#4466aa' },
+  heart:    { label:'Heart Anatomy', color:'#e74c3c', board:'Heart Anatomy', board2:'Click the heart to dissect it!',  wallColor:'#2a0808', lightColor:'#cc2222' },
+  geometry: { label:'Geometry',      color:'#3498db', board:'Geometry Room', board2:'Click any shape to learn!',       wallColor:'#0d1b2a', lightColor:'#2266cc' },
+  world:    { label:'World Map',     color:'#27ae60', board:'World Geography',board2:'Click the globe to explore!',    wallColor:'#0a1f15', lightColor:'#228844' },
+  body:     { label:'Human Body',    color:'#f5f5dc', board:'Human Body',    board2:'Click any body part to learn!',   wallColor:'#1a1510', lightColor:'#888866' }
+};
+
+// ══ SUBJECT DATA ════════════════════════════════════
+const SUBJECTS = {
+  // SOLAR SYSTEM
+  sun:     { title:'The Sun ☀', text:'Star at Solar System center. 1.4M km wide — 1.3M Earths fit inside! Surface: 5,500°C. Core: 15 million°C.', fun:'The Sun contains 99.86% of all mass in the Solar System!', voice:'The Sun is the star at the center of our Solar System. It is 1.4 million kilometers wide!', quiz:{ q:'What is the Sun\'s surface temperature?', opts:['5,500°C','100°C','1,000°C','50°C'], ans:0 }},
+  earth:   { title:'Earth 🌍', text:'3rd planet from Sun. Only planet with liquid water and life. 1 day = 24h. 71% water, 29% land.', fun:'Earth is the densest planet in the Solar System!', voice:'Earth is our home planet, the third from the Sun. The only planet with liquid water and life.', quiz:{ q:'What % of Earth is covered by water?', opts:['71%','29%','50%','90%'], ans:0 }},
+  mars:    { title:'Mars 🔴', text:'4th planet. Red from iron oxide. Olympus Mons = tallest volcano (21km high, 3× Everest!). Day = 24h 37min.', fun:'Mars dust storms can last months and cover the entire planet!', voice:'Mars is the fourth planet, red from iron oxide. It has the tallest volcano called Olympus Mons!', quiz:{ q:'Why does Mars appear red?', opts:['Iron oxide on surface','It is on fire','Red clouds','Red oceans'], ans:0 }},
+  moon:    { title:'The Moon 🌙', text:"Earth's only satellite. Orbits in 27 days. No atmosphere. Neil Armstrong walked on it July 20, 1969!", fun:'The Moon moves 3.8 cm away from Earth every year!', voice:"The Moon is Earth's only natural satellite. Neil Armstrong first walked on it in 1969!", quiz:{ q:'Who was first to walk on the Moon?', opts:['Neil Armstrong','Buzz Aldrin','Yuri Gagarin','Alan Shepard'], ans:0 }},
+  jupiter: { title:'Jupiter 🟠', text:'Largest planet! All others fit inside it. Great Red Spot storm = 350+ years old! 95 moons. Day = 10 hours.', fun:'Jupiter acts as a shield, pulling dangerous asteroids away from Earth!', voice:'Jupiter is the largest planet. Its Great Red Spot is a storm over 350 years old!', quiz:{ q:'How long has Jupiter\'s Great Red Spot existed?', opts:['350+ years','10 years','100 years','2 years'], ans:0 }},
+  saturn:  { title:'Saturn 🪐', text:'6th planet. Rings of ice and rock. So light it floats on water! 146 moons. Winds: 1,800 km/h!', fun:'Saturn\'s rings are only 10–20 meters thick but 270,000 km wide!', voice:'Saturn is the sixth planet, famous for its beautiful rings. So light it could float on water!', quiz:{ q:'What are Saturn\'s rings made of?', opts:['Ice and rock','Fire','Gold','Water'], ans:0 }},
+  // HEART
+  heart3d: { title:'Heart — Tap to Dissect ❤', text:'The heart is a muscular organ that pumps blood throughout the body. It beats 60–100 times per minute — about 100,000 times per day!', fun:'In a lifetime, the heart beats over 2.5 billion times!', voice:'The heart pumps blood throughout the body, beating about 100 thousand times every day!', quiz:{ q:'How many times does the heart beat per day?', opts:['100,000','1,000','1 million','10,000'], ans:0 }},
+  // GEOMETRY
+  cube:    { title:'Cube 📦', text:'A cube has 6 equal square faces, 8 vertices, and 12 edges. Volume = side³. Surface area = 6 × side². A dice is a cube!', fun:'A Rubik\'s cube has 43 quintillion possible combinations!', voice:'A cube has 6 equal square faces, 8 vertices, and 12 edges.', quiz:{ q:'How many faces does a cube have?', opts:['6','4','8','12'], ans:0 }},
+  sphere:  { title:'Sphere 🔴', text:'A sphere has no edges or vertices. Volume = 4/3 × π × r³. Surface area = 4πr². The Earth is approximately a sphere!', fun:'A sphere has the smallest surface area for a given volume of any shape!', voice:'A sphere has no edges or vertices. Volume equals four thirds pi r cubed.', quiz:{ q:'How many edges does a sphere have?', opts:['0','1','2','4'], ans:0 }},
+  cone:    { title:'Cone 🔺', text:'A cone has 1 circular base, 1 apex (tip), 1 curved surface. Volume = 1/3 × π × r² × h. Ice cream cones are a cone shape!', fun:'A cone has exactly 1 vertex, 1 edge, and 2 faces!', voice:'A cone has one circular base and one apex. Volume equals one third pi r squared h.', quiz:{ q:'How many vertices does a cone have?', opts:['1','0','2','3'], ans:0 }},
+  cylinder:{ title:'Cylinder 🥫', text:'A cylinder has 2 circular faces, 1 curved surface, 2 edges, 0 vertices. Volume = π × r² × h. Cans are cylinders!', fun:'A cylinder is the most efficient shape for storing things in a container!', voice:'A cylinder has two circular faces and one curved surface. Volume equals pi r squared h.', quiz:{ q:'How many circular faces does a cylinder have?', opts:['2','1','0','3'], ans:0 }},
+  torus:   { title:'Torus (Ring) ⭕', text:'A torus is a donut-shaped surface. It has no edges or sharp vertices. A donut is a torus! Used in electromagnets and particle colliders.', fun:'The famous CERN particle accelerator is built in a torus shape!', voice:'A torus is a donut-shaped surface with no edges or vertices.', quiz:{ q:'Which everyday object is shaped like a torus?', opts:['Donut','Dice','Ice cream','Orange'], ans:0 }},
+  // WORLD MAP
+  globe:   { title:'The Earth 🌍', text:'Earth diameter: 12,742 km. Circumference: 40,075 km. 7 continents. 5 oceans. Highest point: Mount Everest (8,849m). Deepest: Mariana Trench (-11,034m)!', fun:'If Earth were the size of a basketball, its atmosphere would be thinner than a sheet of paper!', voice:'Earth has 7 continents and 5 oceans. Mount Everest is the highest point at 8,849 meters!', quiz:{ q:'How many continents does Earth have?', opts:['7','5','6','8'], ans:0 }},
+  africa:  { title:'Africa 🌍', text:'Largest continent by number of countries (54). 2nd largest by area. Home to the Sahara Desert, the Nile River, and diverse wildlife.', fun:'Africa is the only continent that spans all four hemispheres!', voice:'Africa has 54 countries and is home to the Sahara Desert and the Nile River.', quiz:{ q:'How many countries are in Africa?', opts:['54','44','64','34'], ans:0 }},
+  ocean:   { title:'Oceans 🌊', text:'Earth has 5 oceans: Pacific (largest), Atlantic, Indian, Southern, Arctic. Pacific Ocean is bigger than all land combined! Oceans cover 71% of Earth.', fun:'We have better maps of Mars than of our own ocean floor!', voice:'Earth has 5 oceans. The Pacific is the largest, bigger than all land combined!', quiz:{ q:'Which is the largest ocean?', opts:['Pacific','Atlantic','Indian','Arctic'], ans:0 }},
+  mountain:{ title:'Mountains 🏔', text:'Mount Everest (8,849m) is the tallest above sea level. Mauna Kea in Hawaii is tallest from the ocean floor (10,210m). About 22% of Earth\'s land is mountainous.', fun:'Everest grows about 4mm taller every year as tectonic plates push it up!', voice:'Mount Everest is the tallest mountain at 8,849 meters above sea level.', quiz:{ q:'How tall is Mount Everest?', opts:['8,849m','7,000m','10,000m','6,000m'], ans:0 }},
+  // HUMAN BODY
+  skull:   { title:'Skull & Brain 🧠', text:'The skull has 22 bones protecting the brain. The brain weighs ~1.4 kg and uses 20% of the body\'s energy. It has 86 billion neurons!', fun:'Your brain generates enough electricity to power a small light bulb!', voice:'The skull has 22 bones. The brain weighs 1.4 kilograms and has 86 billion neurons!', quiz:{ q:'How many neurons does the brain have?', opts:['86 billion','1 million','1 billion','100 trillion'], ans:0 }},
+  lungs:   { title:'Lungs 🫁', text:'You have 2 lungs. They breathe 23,000 times per day, processing 11,000 litres of air. Surface area of lungs = size of a tennis court!', fun:'If you spread both lungs flat they would cover an entire tennis court!', voice:'You breathe 23,000 times per day. The lungs\' surface area equals a tennis court!', quiz:{ q:'How many times do you breathe per day?', opts:['23,000','1,000','100,000','500'], ans:0 }},
+  skeleton:{ title:'Skeleton 🦴', text:'The human skeleton has 206 bones. Bones are 5× stronger than steel per weight. The femur (thigh bone) is the longest and strongest bone!', fun:'You are born with 270 bones — they fuse together as you grow!', voice:'The human skeleton has 206 bones. The femur is the longest and strongest bone!', quiz:{ q:'How many bones does the adult human skeleton have?', opts:['206','270','150','300'], ans:0 }},
+  stomach: { title:'Digestive System 🫃', text:'The stomach produces acid strong enough to dissolve metal! The small intestine is 6-7m long. It takes 24-72 hours to fully digest food.', fun:'Your stomach lining replaces itself every 3-4 days because of its own acid!', voice:'The stomach produces acid strong enough to dissolve metal. The small intestine is 6 to 7 meters long!', quiz:{ q:'How long is the small intestine?', opts:['6-7 meters','1 meter','10 meters','3 meters'], ans:0 }},
+};
+
+// Room objects mapping to data
+const ROOM_OBJECTS = {
+  solar:    ['sun','earth','mars','moon','jupiter','saturn'],
+  heart:    ['heart3d'],
+  geometry: ['cube','sphere','cone','cylinder','torus'],
+  world:    ['globe','africa','ocean','mountain'],
+  body:     ['skull','lungs','skeleton','stomach']
+};
+
+// ══ AUDIO ════════════════════════════════════════════
+let audioCtx = null;
+function getCtx(){if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();if(audioCtx.state==='suspended')audioCtx.resume();return audioCtx;}
+function whoosh(){try{const c=getCtx(),sz=c.sampleRate*0.4,buf=c.createBuffer(1,sz,c.sampleRate),d=buf.getChannelData(0);for(let i=0;i<sz;i++)d[i]=Math.random()*2-1;const n=c.createBufferSource();n.buffer=buf;const f=c.createBiquadFilter();f.type='bandpass';f.frequency.setValueAtTime(200,c.currentTime);f.frequency.exponentialRampToValueAtTime(1800,c.currentTime+0.15);f.frequency.exponentialRampToValueAtTime(400,c.currentTime+0.4);f.Q.value=1.2;const g=c.createGain();g.gain.setValueAtTime(0,c.currentTime);g.gain.linearRampToValueAtTime(0.6,c.currentTime+0.05);g.gain.exponentialRampToValueAtTime(0.001,c.currentTime+0.4);n.connect(f);f.connect(g);g.connect(c.destination);n.start();n.stop(c.currentTime+0.4);}catch(e){}}
+function footstep(){try{const c=getCtx(),sz=c.sampleRate*0.1,buf=c.createBuffer(1,sz,c.sampleRate),d=buf.getChannelData(0);for(let i=0;i<sz;i++)d[i]=Math.random()*2-1;const n=c.createBufferSource();n.buffer=buf;const f=c.createBiquadFilter();f.type='lowpass';f.frequency.value=250;const g=c.createGain();g.gain.setValueAtTime(0.35,c.currentTime);g.gain.exponentialRampToValueAtTime(0.001,c.currentTime+0.1);n.connect(f);f.connect(g);g.connect(c.destination);n.start();n.stop(c.currentTime+0.1);}catch(e){}}
+function playCorrect(){try{const c=getCtx();[523,659,784].forEach((fr,i)=>{const o=c.createOscillator(),g=c.createGain();o.type='sine';o.frequency.value=fr;const t=c.currentTime+i*0.12;g.gain.setValueAtTime(0.3,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.4);o.connect(g);g.connect(c.destination);o.start(t);o.stop(t+0.4);});}catch(e){}}
+function playWrong(){try{const c=getCtx(),o=c.createOscillator(),g=c.createGain();o.type='sawtooth';o.frequency.value=110;g.gain.setValueAtTime(0.3,c.currentTime);g.gain.exponentialRampToValueAtTime(0.001,c.currentTime+0.35);o.connect(g);g.connect(c.destination);o.start();o.stop(c.currentTime+0.35);}catch(e){}}
+function playCeleb(){try{const c=getCtx();[523,659,784,1047,1319,1568].forEach((fr,i)=>{const o=c.createOscillator(),g=c.createGain();o.type='sine';o.frequency.value=fr;const t=c.currentTime+i*0.15;g.gain.setValueAtTime(0.35,t);g.gain.exponentialRampToValueAtTime(0.001,t+0.55);o.connect(g);g.connect(c.destination);o.start(t);o.stop(t+0.55);});}catch(e){}}
+// Heartbeat LUB-DUB sound
+function playLubDub(){try{const c=getCtx();function beat(t,freq,dur){const o=c.createOscillator(),g=c.createGain();o.type='sine';o.frequency.value=freq;g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(0.5,t+0.05);g.gain.exponentialRampToValueAtTime(0.001,t+dur);o.connect(g);g.connect(c.destination);o.start(t);o.stop(t+dur);}const t=c.currentTime;beat(t,80,0.12);beat(t,60,0.12);beat(t+0.15,55,0.1);beat(t+0.15,45,0.1);}catch(e){}}
+
+// Background music
+let musicOn=false,musicNodes=[];
+function startMusic(){try{const c=getCtx();[36.7,55,73.4,110,130.8,164.8].forEach((fr,i)=>{const o=c.createOscillator(),g=c.createGain(),lfo=c.createOscillator(),lg=c.createGain();o.type='sine';o.frequency.value=fr;lfo.type='sine';lfo.frequency.value=0.05+i*0.025;lg.gain.value=2+i*0.5;lfo.connect(lg);lg.connect(o.frequency);g.gain.value=0.032;o.connect(g);g.connect(c.destination);o.start();lfo.start();musicNodes.push(o,g,lfo,lg);});musicOn=true;document.getElementById('music-btn').textContent='🎵 Music: ON';}catch(e){}}
+function stopMusic(){musicNodes.forEach(n=>{try{n.disconnect();}catch(e){}});musicNodes=[];musicOn=false;document.getElementById('music-btn').textContent='🎵 Music: OFF';}
+function toggleMusic(){if(musicOn)stopMusic();else startMusic();}
+function toggleFullscreen(){if(!document.fullscreenElement)document.documentElement.requestFullscreen();else document.exitFullscreen();}
+
+// ══ VOICE ════════════════════════════════════════════
+function speak(text){window.speechSynthesis.cancel();setTimeout(()=>{const msg=new SpeechSynthesisUtterance(text);msg.lang='en-US';msg.rate=0.88;msg.pitch=1.1;msg.volume=1;const voices=window.speechSynthesis.getVoices();const match=voices.find(v=>v.lang==='en-US'||v.lang.startsWith('en'));if(match)msg.voice=match;window.speechSynthesis.speak(msg);},150);}
+
+// ══ ROOM SWITCHER ════════════════════════════════════
+function switchRoom(id){
+  // Hide all rooms
+  ['solar','heart','geometry','world','body'].forEach(r=>{
+    const el=document.getElementById('room-'+r);
+    if(el)el.setAttribute('visible','false');
+    const rb=document.getElementById('rb-'+r);
+    if(rb)rb.classList.remove('active');
+  });
+  // Show selected
+  const el=document.getElementById('room-'+id);
+  if(el)el.setAttribute('visible','true');
+  curRoom=id;
+  const rb=document.getElementById('rb-'+id);
+  if(rb)rb.classList.add('active');
+
+  const r=ROOMS[id];
+  // Update board
+  document.getElementById('board-text').setAttribute('value',r.board+' — VR School');
+  document.getElementById('board-text2').setAttribute('value',r.board2);
+
+  // Update planet bar labels
+  updatePBar();
+
+  // Update light color
+  document.getElementById('room-light').setAttribute('color',r.lightColor);
+
+  // Hide all planet buttons first
+  document.querySelectorAll('.pbtn').forEach(b=>b.style.display='none');
+
+  // Show/hide solar buttons
+  if(id==='solar'){
+    document.querySelectorAll('.pbtn:not([id^=obj-btn])').forEach(b=>b.style.display='block');
+    document.querySelectorAll('[id^=obj-btn]').forEach(b=>b.style.display='none');
+  } else {
+    document.querySelectorAll('.pbtn:not([id^=obj-btn])').forEach(b=>b.style.display='none');
+    document.querySelectorAll('[id^=obj-btn]').forEach(b=>b.style.display='block');
+    setupObjButtons(id);
+  }
+
+  // Reset walk
+  walkDone=false;
+  const wb=document.getElementById('walk-btn');
+  wb.innerHTML='🚶 Send Student to '+r.label;
+  wb.style.opacity='1';
+  const ws=document.getElementById('ws');
+  if(ws){ws.setAttribute('position','2 0 -2.3');ws.removeAttribute('animation__walk');}
+  const arm=document.getElementById('ws-arm');
+  if(arm){arm.setAttribute('rotation','0 0 15');arm.setAttribute('position','-0.32 1.3 0');}
+
+  speak('Welcome to the '+r.label+' room! '+r.board2);
+  document.getElementById('info-panel').style.display='none';
+  document.getElementById('quiz-panel').style.display='none';
+  document.getElementById('heart-panel').style.display='none';
+
+  // Start heartbeat loop for heart room
+  if(id==='heart') startHeartbeat();
+}
+
+function setupObjButtons(id){
+  const objs=ROOM_OBJECTS[id];
+  const positions=[
+    {top:'40%',left:'44%',w:'80px',h:'80px'},
+    {top:'37%',left:'52%',w:'70px',h:'70px'},
+    {top:'41%',left:'58%',w:'65px',h:'65px'},
+    {top:'35%',left:'48%',w:'60px',h:'60px'},
+    {top:'38%',left:'56%',w:'60px',h:'60px'},
+  ];
+  objs.forEach((objId,i)=>{
+    const btn=document.getElementById('obj-btn-'+(i+1));
+    if(btn){
+      btn.setAttribute('data-label',SUBJECTS[objId]?SUBJECTS[objId].title.split(' ')[0]:objId);
+      btn.onclick=()=>showInfo(objId);
+      const pos=positions[i]||positions[0];
+      btn.style.top=pos.top;btn.style.left=pos.left;
+      btn.style.width=pos.w;btn.style.height=pos.h;
+      btn.style.display='block';
+    }
+  });
+  // Hide unused buttons
+  for(let i=objs.length+1;i<=4;i++){
+    const btn=document.getElementById('obj-btn-'+i);
+    if(btn)btn.style.display='none';
+  }
+}
+
+function updatePBar(){
+  const objs=ROOM_OBJECTS[curRoom]||[];
+  const bar=document.getElementById('pbar');
+  bar.innerHTML='';
+  const icons={sun:'☀',earth:'🌍',moon:'🌙',mars:'🔴',jupiter:'🟠',saturn:'🪐',
+    heart3d:'❤',cube:'📦',sphere:'⭕',cone:'🔺',cylinder:'🥫',torus:'💿',
+    globe:'🌐',africa:'🌍',ocean:'🌊',mountain:'🏔',skull:'🧠',lungs:'🫁',skeleton:'🦴',stomach:'🫃'};
+  objs.forEach(id=>{
+    const s=SUBJECTS[id];if(!s)return;
+    const b=document.createElement('button');
+    b.innerHTML=(icons[id]||'●')+' '+s.title.split(' ')[0];
+    b.onclick=()=>showInfo(id);
+    bar.appendChild(b);
+  });
+}
+
+// ══ SHOW INFO ════════════════════════════════════════
+function showInfo(id){
+  if(quizActive)return;
+  curPlanet=id;
+  whoosh();
+  visited.add(id);
+  document.getElementById('explored').textContent=visited.size;
+
+  // Special case: heart 3D — open heart panel
+  if(id==='heart3d'){
+    document.getElementById('heart-panel').style.display='block';
+    speak('This is the heart. It beats about 100 thousand times every day. Click any button to learn about each part!');
+    return;
+  }
+
+  const s=SUBJECTS[id];
+  if(!s)return;
+  document.getElementById('ititle').textContent=s.title;
+  document.getElementById('ititle').style.color=ROOMS[curRoom].color;
+  document.getElementById('itext').textContent=s.text;
+  document.getElementById('info-fun').textContent=s.fun;
+  document.getElementById('info-panel').style.display='block';
+  document.getElementById('quiz-panel').style.display='none';
+  document.getElementById('hint').style.display='none';
+  setTimeout(()=>speak(s.voice),200);
+}
+
+function closeInfo(){
+  document.getElementById('info-panel').style.display='none';
+  if(!timerOn)document.getElementById('hint').style.display='block';
+  window.speechSynthesis.cancel();
+}
+
+function speakNow(){if(curPlanet&&SUBJECTS[curPlanet])speak(SUBJECTS[curPlanet].voice);}
+
+// ══ QUIZ ═════════════════════════════════════════════
+function openQuiz(){
+  if(!curPlanet||!SUBJECTS[curPlanet])return;
+  const qd=SUBJECTS[curPlanet].quiz;if(!qd)return;
+  document.getElementById('info-panel').style.display='none';
+  document.getElementById('quiz-panel').style.display='block';
+  document.getElementById('qtext').textContent=qd.q;
+  document.getElementById('qres').textContent='';
+  document.getElementById('qnext').style.display='none';
+  quizActive=true;
+  const opts=document.getElementById('qopts');opts.innerHTML='';
+  qd.opts.forEach((o,i)=>{const b=document.createElement('button');b.className='qopt';b.textContent=o;b.onclick=()=>answerQ(i,qd.ans,b);opts.appendChild(b);});
+  speak(qd.q);
+}
+
+function answerQ(chosen,correct,btn){
+  document.querySelectorAll('.qopt').forEach(b=>b.onclick=null);
+  const all=document.querySelectorAll('.qopt');
+  const res=document.getElementById('qres');
+  if(chosen===correct){
+    btn.classList.add('correct');streak++;
+    const bonus=streak>=3?25:15;totalPts+=bonus;
+    document.getElementById('pts').textContent=totalPts;
+    document.getElementById('streak').textContent=streak>=3?'🔥 Streak ×'+streak+'! +'+bonus+'pts':'';
+    res.textContent='✅ Correct! +'+bonus+' points';res.style.color='#2ecc71';
+    playCorrect();speak('Correct! Well done '+playerName+'!');
+  } else {
+    btn.classList.add('wrong');all[correct].classList.add('correct');streak=0;
+    document.getElementById('streak').textContent='';
+    res.textContent='❌ Wrong! Answer: '+SUBJECTS[curPlanet].quiz.opts[correct];res.style.color='#e74c3c';
+    playWrong();speak('Not quite! The correct answer is '+SUBJECTS[curPlanet].quiz.opts[correct]);
+  }
+  document.getElementById('qnext').style.display='block';
+}
+
+function closeQuiz(){document.getElementById('quiz-panel').style.display='none';quizActive=false;}
+
+// ══ HEART PANEL FUNCTIONS ════════════════════════════
+const HEART_INFO={
+  ra:'Right Atrium — Receives deoxygenated blood from the body via the vena cava. It then pushes this blood into the right ventricle through the tricuspid valve.',
+  la:'Left Atrium — Receives oxygenated blood from the lungs via pulmonary veins. It sends this blood into the left ventricle through the mitral valve.',
+  rv:'Right Ventricle — Pumps deoxygenated blood to the lungs through the pulmonary artery. Walls are thinner than the left ventricle.',
+  lv:'Left Ventricle — The most powerful chamber! Pumps oxygenated blood to the whole body through the aorta. Walls are 3× thicker than the right ventricle.',
+  aorta:'Aorta — The largest artery in the body (2.5 cm wide). Carries oxygenated blood from the left ventricle to the entire body. Branches into many smaller arteries.',
+  valve:'Valves — 4 valves prevent blood flowing backwards: Tricuspid (right), Mitral (left), Aortic, and Pulmonary. The "lub-dub" sound = valves closing!',
+  blood:'Blood Flow — Deoxygenated blood (blue): Body → Right Atrium → Right Ventricle → Lungs. Oxygenated blood (red): Lungs → Left Atrium → Left Ventricle → Body.',
+  beat:'Heartbeat — The heart beats 60–100 times/min. LUB = mitral & tricuspid valves closing. DUB = aortic & pulmonary valves closing. This makes the "lub-dub" sound!'
+};
+
+function heartInfo(part){
+  document.getElementById('h-label-box').textContent=HEART_INFO[part]||'';
+  speak(HEART_INFO[part]||'');
+  // Highlight relevant SVG element
+  const el=document.getElementById(part);
+  if(el){
+    el.style.filter='brightness(1.8)';
+    setTimeout(()=>{if(el)el.style.filter='';},2000);
+  }
+  if(part==='beat')playLubDub();
+}
+
+let heartbeatInt=null;
+let lubdubState=true;
+function startHeartbeat(){
+  if(heartbeatInt)clearInterval(heartbeatInt);
+  heartbeatInt=setInterval(()=>{
+    const txt=document.getElementById('lubdub-text');
+    if(txt){txt.textContent=lubdubState?'LUB':'DUB';lubdubState=!lubdubState;}
+    if(Math.random()>0.6)playLubDub();
+  },500);
+}
+
+// ══ ROOM CLICK SHORTCUT ═════════════════════════════
+function roomClick(i){
+  const objs=ROOM_OBJECTS[curRoom]||[];
+  if(objs[i])showInfo(objs[i]);
+}
+
+// ══ WALK ANIMATION ═══════════════════════════════════
+function doWalk(){
+  if(walkDone)return;walkDone=true;
+  const btn=document.getElementById('walk-btn');
+  btn.innerHTML='🚶 Walking...';btn.style.opacity='0.6';
+  speak('Watch! The student is walking to explore the '+ROOMS[curRoom].label+'!');
+  const ws=document.getElementById('ws');
+  ws.setAttribute('animation__walk',{property:'position',from:'2 0 -2.3',to:'1.0 0 -3.2',dur:2800,easing:'linear'});
+  let steps=0;
+  const si=setInterval(()=>{
+    const ll=document.getElementById('leg-l'),lr=document.getElementById('leg-r');
+    if(ll&&lr){ll.setAttribute('rotation',`${steps%2===0?20:-20} 0 0`);lr.setAttribute('rotation',`${steps%2===0?-20:20} 0 0`);}
+    footstep();if(++steps>=12){clearInterval(si);if(ll)ll.setAttribute('rotation','0 0 0');if(lr)lr.setAttribute('rotation','0 0 0');}
+  },230);
+  setTimeout(()=>{
+    whoosh();btn.innerHTML='🤚 Touching...';
+    // Three.js arm reach
+    let t=0;
+    const arm=document.getElementById('ws-arm'),hand=document.getElementById('ws-hand');
+    const reach=setInterval(()=>{
+      t+=0.05;if(t>1)t=1;
+      const e=THREE.MathUtils.smoothstep(t,0,1);
+      const rx=THREE.MathUtils.lerp(15,-75,e);
+      const pz=THREE.MathUtils.lerp(0,-0.45,e);
+      const py=THREE.MathUtils.lerp(1.3,1.55,e);
+      if(arm){arm.setAttribute('rotation',`${rx} 0 0`);arm.setAttribute('position',`-0.32 ${py} ${pz}`);}
+      if(hand)hand.setAttribute('position',`-0.5 ${THREE.MathUtils.lerp(1.15,1.6,e)} ${THREE.MathUtils.lerp(0,-0.7,e)}`);
+      if(t>=1){clearInterval(reach);btn.innerHTML='✅ Click to explore!';setTimeout(()=>speak('Student arrived! Click any object to learn!'),200);}
+    },30);
+  },2900);
+}
+
+// ══ TIMER ════════════════════════════════════════════
+function startTimer(){
+  timerSec=90;timerOn=true;
+  document.getElementById('timer-box').style.display='block';
+  document.getElementById('hint').style.display='none';
+  updateTimer();
+  timerInt=setInterval(()=>{
+    timerSec--;updateTimer();
+    if(timerSec<=15)document.getElementById('timer-box').classList.add('urgent');
+    if(timerSec<=0){clearInterval(timerInt);timerOn=false;showCelebration(true);}
+  },1000);
+}
+function updateTimer(){document.getElementById('tdisp').textContent=timerSec;}
+function showCelebration(timeUp){
+  window.speechSynthesis.cancel();
+  if(timerInt)clearInterval(timerInt);timerOn=false;
+  if(heartbeatInt){clearInterval(heartbeatInt);heartbeatInt=null;}
+  document.getElementById('info-panel').style.display='none';
+  document.getElementById('quiz-panel').style.display='none';
+  document.getElementById('heart-panel').style.display='none';
+  document.getElementById('timer-box').style.display='none';
+  const bonus=!timeUp&&timerSec>0?timerSec:0;
+  if(!timeUp)totalPts+=bonus;
+  document.getElementById('pts').textContent=totalPts;
+  document.getElementById('cel-msg').textContent=playerName+', you explored '+visited.size+' subjects!';
+  document.getElementById('cel-score').textContent=totalPts+' pts';
+  document.getElementById('cel-time').textContent=timeUp?'⏰ Time ran out!':'⏱ Time bonus: +'+bonus+' pts';
+  document.getElementById('celebration').style.display='flex';
+  playCeleb();saveScore();
+  setTimeout(()=>speak('Amazing '+playerName+'! You scored '+totalPts+' points! You are a brilliant explorer!'),700);
+}
+
+// ══ LEADERBOARD ══════════════════════════════════════
+function saveScore(){const scores=JSON.parse(localStorage.getItem('vr_lb')||'[]');scores.push({name:playerName,score:totalPts,date:new Date().toLocaleDateString()});scores.sort((a,b)=>b.score-a.score);localStorage.setItem('vr_lb',JSON.stringify(scores.slice(0,10)));}
+function showLB(){
+  const scores=JSON.parse(localStorage.getItem('vr_lb')||'[]');
+  const list=document.getElementById('lb-list');
+  list.innerHTML=scores.length?scores.slice(0,8).map((s,i)=>`<div class="lbrow"><span class="lbrank">${['🥇','🥈','🥉'][i]||'#'+(i+1)}</span><span class="lbname">${s.name}</span><span class="lbpts">${s.score} pts</span><span style="color:#445;font-size:10px;margin-left:5px">${s.date}</span></div>`).join(''):'<p style="color:#445;text-align:center;padding:14px">No scores yet!</p>';
+  document.getElementById('lb-overlay').style.display='block';
+  document.getElementById('celebration').style.display='none';
+}
+
+// ══ RESET ═════════════════════════════════════════════
+function resetAll(){
+  document.getElementById('celebration').style.display='none';
+  document.getElementById('timer-box').classList.remove('urgent');
+  visited.clear();totalPts=0;streak=0;curPlanet=null;quizActive=false;walkDone=false;
+  document.getElementById('explored').textContent=0;
+  document.getElementById('pts').textContent=0;
+  document.getElementById('streak').textContent='';
+  const ws=document.getElementById('ws');
+  if(ws){ws.setAttribute('position','2 0 -2.3');ws.removeAttribute('animation__walk');}
+  const arm=document.getElementById('ws-arm');if(arm){arm.setAttribute('rotation','0 0 15');arm.setAttribute('position','-0.32 1.3 0');}
+  const hand=document.getElementById('ws-hand');if(hand)hand.setAttribute('position','-0.5 1.15 0');
+  const wb=document.getElementById('walk-btn');wb.innerHTML='🚶 Send Student to '+ROOMS[curRoom].label;wb.style.opacity='1';
+  document.getElementById('hint').style.display='block';
+  startTimer();
+}
+
+// ══ START APP ════════════════════════════════════════
+function startApp(){
+  const n=document.getElementById('name-in').value.trim();
+  playerName=n||'Explorer';
+  document.getElementById('pname-disp').textContent=playerName;
+  document.getElementById('start').style.display='none';
+  audioCtx=new(window.AudioContext||window.webkitAudioContext)();audioCtx.resume();
+  const unlock=new SpeechSynthesisUtterance(' ');unlock.volume=0.01;unlock.rate=2;window.speechSynthesis.speak(unlock);
+  document.getElementById('score-box').style.display='block';
+  document.getElementById('controls').style.display='flex';
+  document.getElementById('pbar').style.display='flex';
+  document.getElementById('room-bar').style.display='flex';
+  document.getElementById('walk-btn').style.display='block';
+  document.getElementById('crosshair').style.display='block';
+  document.getElementById('move-guide').style.display='block';
+  document.querySelectorAll('.pbtn').forEach(b=>b.style.display='block');
+  document.querySelectorAll('[id^=obj-btn]').forEach(b=>b.style.display='none');
+  updatePBar();
+  setTimeout(startMusic,600);setTimeout(whoosh,300);
+  setTimeout(()=>speak('Welcome to the VR Virtual School, '+playerName+'! You have 5 rooms to explore. Use W A S D keys to walk around. Use the room buttons at the top to switch subjects. You have 90 seconds. Good luck!'),900);
+  setTimeout(startTimer,1500);
+}
+window.speechSynthesis.onvoiceschanged=()=>window.speechSynthesis.getVoices();
+</script>
+</body>
+</html>
